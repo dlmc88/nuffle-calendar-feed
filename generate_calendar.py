@@ -5,18 +5,32 @@ import uuid
 
 NAF_URL = "https://member.thenaf.net/index.php?module=NAF&type=tournaments"
 
+EXPECTED_HEADERS = [
+    "tournament",
+    "country",
+    "state",
+    "city",
+    "start date",
+    "end date",
+    "variant",
+    "major"
+]
+
 def find_tournament_table(soup):
-    # Find all tables on the page
     tables = soup.find_all("table")
 
     for table in tables:
-        # Look for a header row containing "Tournament"
-        header = table.find("tr")
-        if not header:
+        rows = table.find_all("tr")
+        if not rows:
             continue
 
-        header_cells = [c.get_text(strip=True).lower() for c in header.find_all(["th", "td"])]
-        if "tournament" in header_cells:
+        header_cells = rows[0].find_all(["th", "td"])
+        header_texts = [c.get_text(strip=True).lower() for c in header_cells]
+
+        # Check if this table matches the expected header structure
+        if len(header_texts) >= 8 and all(
+            h in header_texts[i] for i, h in enumerate(EXPECTED_HEADERS)
+        ):
             return table
 
     return None
@@ -29,18 +43,16 @@ def fetch_events():
 
     events = []
 
-    # Find the correct tournaments table
     table = find_tournament_table(soup)
     if not table:
-        print("No tournament table found")
+        print("Tournament table not found")
         return events
 
-    rows = table.find_all("tr")
+    rows = table.find_all("tr")[1:]  # skip header row
 
-    # Skip header row
-    for row in rows[1:]:
+    for row in rows:
         cols = row.find_all("td")
-        if len(cols) < 7:
+        if len(cols) < 8:
             continue
 
         # Extract fields
@@ -48,12 +60,13 @@ def fetch_events():
         name = name_cell.get_text(strip=True) if name_cell else "NAF Tournament"
         link = name_cell["href"] if name_cell and name_cell.has_attr("href") else ""
 
-        format_type = cols[1].get_text(strip=True)
-        city = cols[2].get_text(strip=True)
-        region = cols[3].get_text(strip=True)
+        country = cols[1].get_text(strip=True)
+        state = cols[2].get_text(strip=True)
+        city = cols[3].get_text(strip=True)
         start_date = cols[4].get_text(strip=True)
         end_date = cols[5].get_text(strip=True)
-        country = cols[6].get_text(strip=True)
+        variant = cols[6].get_text(strip=True)
+        major = cols[7].get_text(strip=True)
 
         # Parse dates
         try:
@@ -66,14 +79,16 @@ def fetch_events():
         except:
             end = start
 
-        # Build location string
-        location_parts = [p for p in [city, region, country] if p]
-        location = ", ".join(location_parts)
+        # Build location
+        location_parts = [city, state, country]
+        location = ", ".join([p for p in location_parts if p])
 
         # Build summary
         summary = name
-        if format_type:
-            summary += f" ({format_type})"
+        if variant:
+            summary += f" ({variant})"
+        if major.lower() == "yes":
+            summary += " [MAJOR]"
 
         events.append({
             "summary": summary,
