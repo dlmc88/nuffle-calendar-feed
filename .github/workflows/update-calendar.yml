@@ -23,9 +23,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Generate calendar
-        run: |
-          python generate_calendar.py
+      - - name: Generate calendar (debug)
+  run: |
+    python generate_calendar.py > output.txt
+    cat output.txt
 
       - name: Commit and push if changed
         run: |
