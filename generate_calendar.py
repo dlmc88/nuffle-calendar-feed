@@ -42,6 +42,7 @@ def find_tournament_table(soup):
 
 def fetch_events():
     resp = requests.get(NAF_URL, headers=HEADERS, timeout=30)
+    print(resp.text[:5000])
     resp.raise_for_status()
     soup = BeautifulSoup(resp.text, "html.parser")
 
