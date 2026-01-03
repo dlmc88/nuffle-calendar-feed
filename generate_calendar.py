@@ -3,7 +3,8 @@ from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 import uuid
 
-NAF_URL = "https://member.thenaf.net/index.php?module=NAF&type=tournaments"
+# Use the showall=1 version so the table is fully present in the HTML
+NAF_URL = "https://member.thenaf.net/index.php?module=NAF&type=tournaments&showall=1"
 
 EXPECTED_HEADERS = [
     "tournament",
@@ -27,9 +28,9 @@ def find_tournament_table(soup):
         header_cells = rows[0].find_all(["th", "td"])
         header_texts = [c.get_text(strip=True).lower() for c in header_cells]
 
-        # Check if this table matches the expected header structure
+        # Check if the header row matches the expected structure
         if len(header_texts) >= 8 and all(
-            h in header_texts[i] for i, h in enumerate(EXPECTED_HEADERS)
+            header_texts[i].startswith(EXPECTED_HEADERS[i]) for i in range(8)
         ):
             return table
 
