@@ -3,8 +3,12 @@ from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 import uuid
 
-# Use the showall=1 version so the table is fully present in the HTML
 NAF_URL = "https://member.thenaf.net/index.php?module=NAF&type=tournaments&showall=1"
+
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                  "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+}
 
 EXPECTED_HEADERS = [
     "tournament",
@@ -28,7 +32,6 @@ def find_tournament_table(soup):
         header_cells = rows[0].find_all(["th", "td"])
         header_texts = [c.get_text(strip=True).lower() for c in header_cells]
 
-        # Check if the header row matches the expected structure
         if len(header_texts) >= 8 and all(
             header_texts[i].startswith(EXPECTED_HEADERS[i]) for i in range(8)
         ):
@@ -38,7 +41,7 @@ def find_tournament_table(soup):
 
 
 def fetch_events():
-    resp = requests.get(NAF_URL, timeout=30)
+    resp = requests.get(NAF_URL, headers=HEADERS, timeout=30)
     resp.raise_for_status()
     soup = BeautifulSoup(resp.text, "html.parser")
 
@@ -49,14 +52,13 @@ def fetch_events():
         print("Tournament table not found")
         return events
 
-    rows = table.find_all("tr")[1:]  # skip header row
+    rows = table.find_all("tr")[1:]
 
     for row in rows:
         cols = row.find_all("td")
         if len(cols) < 8:
             continue
 
-        # Extract fields
         name_cell = cols[0].find("a")
         name = name_cell.get_text(strip=True) if name_cell else "NAF Tournament"
         link = name_cell["href"] if name_cell and name_cell.has_attr("href") else ""
@@ -69,7 +71,6 @@ def fetch_events():
         variant = cols[6].get_text(strip=True)
         major = cols[7].get_text(strip=True)
 
-        # Parse dates
         try:
             start = datetime.strptime(start_date, "%Y-%m-%d")
         except:
@@ -80,11 +81,9 @@ def fetch_events():
         except:
             end = start
 
-        # Build location
         location_parts = [city, state, country]
         location = ", ".join([p for p in location_parts if p])
 
-        # Build summary
         summary = name
         if variant:
             summary += f" ({variant})"
@@ -131,7 +130,6 @@ def generate_ics(events):
         lines.append(f"UID:{uid}")
         lines.append(f"DTSTAMP:{now}")
 
-        # All-day events
         lines.append(f"DTSTART;VALUE=DATE:{format_dt(ev['start'])}")
         lines.append(f"DTEND;VALUE=DATE:{format_dt(ev['end'] + timedelta(days=1))}")
 
