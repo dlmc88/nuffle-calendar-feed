@@ -3,66 +3,41 @@ from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 import uuid
 
-NUFFLE_URL = "https://nuffle.xyz/calendar"
+NAF_URL = "https://member.thenaf.net/index.php?module=NAF&type=tournaments"
 
 def fetch_events():
-    resp = requests.get(NUFFLE_URL, timeout=30)
+    resp = requests.get(NAF_URL, timeout=30)
     resp.raise_for_status()
     soup = BeautifulSoup(resp.text, "html.parser")
 
     events = []
 
-    # This is a placeholder selector — once you show me the HTML structure,
-    # I will tailor this to match the real event blocks.
-    for ev in soup.find_all("div"):
-        text = ev.get_text(" ", strip=True)
-        if not text:
+    # Find the tournaments table
+    table = soup.find("table")
+    if not table:
+        return events
+
+    rows = table.find_all("tr")
+
+    # Skip header row
+    for row in rows[1:]:
+        cols = row.find_all("td")
+        if len(cols) < 7:
             continue
 
-        # Very rough placeholder parsing
-        # We will refine this once we see the actual DOM
-        if "202" in text:  # crude date detection
-            events.append({
-                "summary": text,
-                "start": datetime.utcnow(),
-                "end": datetime.utcnow() + timedelta(hours=1),
-                "location": ""
-            })
+        # Extract fields
+        name_cell = cols[0].find("a")
+        name = name_cell.get_text(strip=True) if name_cell else "NAF Tournament"
+        link = name_cell["href"] if name_cell and name_cell.has_attr("href") else ""
 
-    return events
+        format_type = cols[1].get_text(strip=True)
+        city = cols[2].get_text(strip=True)
+        region = cols[3].get_text(strip=True)
+        start_date = cols[4].get_text(strip=True)
+        end_date = cols[5].get_text(strip=True)
+        country = cols[6].get_text(strip=True)
 
-def format_dt(dt):
-    return dt.strftime("%Y%m%dT%H%M%S")
-
-def generate_ics(events):
-    lines = []
-    lines.append("BEGIN:VCALENDAR")
-    lines.append("VERSION:2.0")
-    lines.append("PRODID:-//Luke//Nuffle Calendar//EN")
-    lines.append("CALSCALE:GREGORIAN")
-    lines.append("METHOD:PUBLISH")
-
-    now = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
-
-    for ev in events:
-        uid = str(uuid.uuid4()) + "@nuffle-feed"
-        lines.append("BEGIN:VEVENT")
-        lines.append(f"UID:{uid}")
-        lines.append(f"DTSTAMP:{now}")
-        lines.append(f"DTSTART:{format_dt(ev['start'])}")
-        lines.append(f"DTEND:{format_dt(ev['end'])}")
-        summary = ev["summary"].replace("\\", "\\\\").replace(",", "\\,").replace(";", "\\;")
-        lines.append(f"SUMMARY:{summary}")
-        if ev["location"]:
-            loc = ev["location"].replace("\\", "\\\\").replace(",", "\\,").replace(";", "\\;")
-            lines.append(f"LOCATION:{loc}")
-        lines.append("END:VEVENT")
-
-    lines.append("END:VCALENDAR")
-    return "\r\n".join(lines) + "\r\n"
-
-if __name__ == "__main__":
-    events = fetch_events()
-    ics = generate_ics(events)
-    with open("calendar.ics", "w", encoding="utf-8") as f:
-        f.write(ics)
+        # Parse dates
+        try:
+            start = datetime.strptime(start_date, "%Y-%m-%d")
+        except:
