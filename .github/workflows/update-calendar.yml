@@ -2,7 +2,7 @@ name: Update NAF Calendar
 
 on:
   schedule:
-    - cron: "0 */6 * * *"   # Every 6 hours
+    - cron: "0 */6 * * *"
   workflow_dispatch:
 
 jobs:
@@ -28,7 +28,7 @@ jobs:
           echo "Running generate_calendar.py..."
           python generate_calendar.py > debug_output.txt
           echo "=== DEBUG OUTPUT START ==="
-          cat debug_output.txt
+          head -n 200 debug_output.txt
           echo "=== DEBUG OUTPUT END ==="
 
       - name: Commit updated calendar
