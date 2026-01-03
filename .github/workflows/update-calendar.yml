@@ -1,8 +1,8 @@
-name: Update Nuffle calendar
+name: Update NAF Calendar
 
 on:
   schedule:
-    - cron: "0 * * * *"  # every hour
+    - cron: "0 */6 * * *"   # Every 6 hours
   workflow_dispatch:
 
 jobs:
@@ -10,32 +10,36 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v4
         with:
-          python-version: "3.12"
+          python-version: "3.11"
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install requests beautifulsoup4
 
-      - name: Generate calendar (debug)
-  run: |
-    python generate_calendar.py > output.txt
-    cat output.txt
-
-      - name: Commit and push if changed
+      - name: Run calendar generator (debug)
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          if [ -n "$(git status --porcelain)" ]; then
-            git add calendar.ics
-            git commit -m "Update calendar.ics"
-            git push
-          else
-            echo "No changes to commit."
-          fi
+          echo "Running generate_calendar.py..."
+          python generate_calendar.py > debug_output.txt
+          echo "=== DEBUG OUTPUT START ==="
+          cat debug_output.txt
+          echo "=== DEBUG OUTPUT END ==="
+
+      - name: Commit updated calendar
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          git add calendar.ics
+          git commit -m "Update calendar feed" || echo "No changes to commit"
+
+      - name: Push changes
+        uses: ad-m/github-push-action@v0.8.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: main
